@@ -60,9 +60,6 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
                 @Override
                 protected void done() {
                     super.done();
-                    String message = "Export to Akto Completed! Batches Failed: " + failedRequests.size() + "\n";
-                    JOptionPane.showMessageDialog(controlPanel, message, "HAR Export",
-                            JOptionPane.INFORMATION_MESSAGE);
                 }
             };
 
@@ -73,10 +70,7 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
         }
     }
 
-    List<Integer> failedRequests = new ArrayList<>();
-
     public void sendRequestToAkto(List<LogEntry> entries) {
-        failedRequests = new ArrayList<>();
         String JSON_CONTENT_TYPE = "application/json";
         int batchSize = 100;
         List<LogEntry> batch = new ArrayList<>();
@@ -91,12 +85,9 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
             try {
                 shouldSend = HarSerializer.shouldSend(entry);
             } catch (Exception e) {
-                shouldSend = false;
                 LoggerPlusPlus.callbacks.printError("ERROR FOUND SKIP: " + e.getMessage());
             }
-            if (!shouldSend) {
-                continue;
-            }
+            if (!shouldSend) continue;
 
             batch.add(entry);
 
@@ -137,7 +128,7 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
     }
 
     public static CloseableHttpClient httpClient = HttpClientBuilder.create().setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE).build();
-    public boolean sendBatch(List<LogEntry> entries, int batchCode, String akto_ip, String akto_token, String apiCollectionName) {
+    public static boolean sendBatch(List<LogEntry> entries, int batchCode, String akto_ip, String akto_token, String apiCollectionName) {
         Type logEntryListType = new TypeToken<List<LogEntry>>(){}.getType();
         Gson gson = new GsonBuilder().registerTypeAdapter(logEntryListType, new HarSerializer(String.valueOf(Globals.VERSION), "Akto")).create();
         CloseableHttpResponse response;
@@ -175,15 +166,12 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
                         } else {
                             err = "422 error code";
                         }
-                        JOptionPane.showMessageDialog(controlPanel, err, "Akto", JOptionPane.INFORMATION_MESSAGE);
+                        JOptionPane.showMessageDialog(JOptionPane.getFrameForComponent(
+                                LoggerPlusPlus.instance.getMainViewController().getUiComponent()), err);
                     }
                 } else if (statusCode == 403) {
-                    JOptionPane.showMessageDialog(controlPanel,"Invalid API key", "Akto",
-                            JOptionPane.INFORMATION_MESSAGE);
-                } 
-
-                if (statusCode < 200 || statusCode >= 300) {
-                    failedRequests.add(batchCode);
+                    JOptionPane.showMessageDialog(JOptionPane.getFrameForComponent(
+                            LoggerPlusPlus.instance.getMainViewController().getUiComponent()), "Invalid API Key");
                 }
 
                 LoggerPlusPlus.callbacks.printError(responseString);
@@ -200,10 +188,10 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
 
         } catch(Exception e) {
             LoggerPlusPlus.callbacks.printError(e.getMessage());
-            JOptionPane.showMessageDialog(controlPanel, e.toString(), "Akto",
-                JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(JOptionPane.getFrameForComponent(
+                    LoggerPlusPlus.instance.getMainViewController().getUiComponent()), e.toString());
+
             return true;
-        } finally {
         }
 
 

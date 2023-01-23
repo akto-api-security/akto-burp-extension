@@ -112,6 +112,7 @@ public class PreferencesPanel extends JScrollPane {
         aktoGroup.addPreferenceComponent(preferences, "AKTO_TOKEN", "AKTO TOKEN");
         aktoGroup.addPreferenceComponent(preferences, "AKTO_COLLECTION_NAME", "AKTO EXPORT COLLECTION NAME");
         aktoGroup.addPreferenceComponent(preferences, "AKTO_IMPORT_COLLECTION_NAME", "AKTO IMPORT COLLECTION NAME");
+        aktoGroup.addPreferenceComponent(preferences, "AKTO_SEND_DATA_AUTOMATICALLY", "Send data to akto automatically");
 
         aktoGroup.add(new JButton(new AbstractAction("Import From Akto") {
             @Override
