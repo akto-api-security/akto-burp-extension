@@ -2,7 +2,6 @@ bin/
 .*/
 build/
 out/
-Util/
 libs/burpsuite_pro.jar
 BurpLogger++.iml
 TODO
