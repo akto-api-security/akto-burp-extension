@@ -203,7 +203,7 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
             HARExporter.sendBatch(data.subList(0,Math.min(100, data.size())), 0, aktoIp, aktoToken, collectionName);
         }
     }
-    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
 
     public void startHealthCheckThread() {
         try {
