@@ -4,6 +4,7 @@ import burp.*;
 import com.coreyd97.BurpExtenderUtilities.Preferences;
 import com.nccgroup.loggerplusplus.LoggerPlusPlus;
 import com.nccgroup.loggerplusplus.exports.ExportController;
+import com.nccgroup.loggerplusplus.exports.HARExporter;
 import com.nccgroup.loggerplusplus.filter.colorfilter.ColorFilter;
 import com.nccgroup.loggerplusplus.filter.tag.Tag;
 import com.nccgroup.loggerplusplus.logentry.LogEntry;
@@ -15,6 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.*;
@@ -127,6 +129,16 @@ public class LogProcessor implements IHttpListener, IProxyListener {
             UUID uuid = LogProcessorHelper.extractAndRemoveUUIDFromRequestResponseComment(instanceIdentifier, httpMessage);
             if (uuid != null) {
                 updateRequestWithResponse(uuid, arrivalTime, httpMessage);
+
+                try {
+                    if (LoggerPlusPlus.instance.getPreferencesController().getPreferences().getSetting("AKTO_SEND_DATA_AUTOMATICALLY")) {
+                        LogEntry logEntry = new LogEntry(toolFlag, httpMessage);
+                        logEntry.process();
+                        LoggerPlusPlus.instance.logEntries.add(logEntry);
+                    }
+                } catch (Exception e) {
+                    LoggerPlusPlus.callbacks.printError("Error while processing log: " + uuid + " (" + e.getMessage() + ")");
+                }
             }
         }
     }
