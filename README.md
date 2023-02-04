@@ -3,6 +3,12 @@
 
 Released as open source by Akto on Jan 13 2023.
 
+
+
+https://user-images.githubusercontent.com/91306853/216748138-bba85a2f-6326-4aaf-95b0-24832e53f48d.mp4
+
+
+
 <b>Modifications:</b>
 Akto burp plugin built on top of Logger++ plugin developed by Corey Arthur and  Soroush Dalili.
 
