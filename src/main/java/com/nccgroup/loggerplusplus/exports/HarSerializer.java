@@ -13,7 +13,6 @@ import com.nccgroup.loggerplusplus.logentry.LogEntryField;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,8 +25,6 @@ public class HarSerializer extends TypeAdapter<List<LogEntry>> {
         this.version = version;
         this.creator = creator;
     }
-
-    List<String> acceptableContentTypes = Arrays.asList("application/json", "application/x-www-form-urlencoded");
 
     @Override
     public void write(JsonWriter writer, List<LogEntry> logEntries) throws IOException {
@@ -51,20 +48,7 @@ public class HarSerializer extends TypeAdapter<List<LogEntry>> {
         writer.name("entries").beginArray();
         int idx = 0;
         for (LogEntry logEntry : logEntries) {
-            String requestBody = (String) logEntry.getValueByKey(LogEntryField.REQUEST_BODY);
-            if (!logEntry.requestContentType.equals("application/x-www-form-urlencoded")) {
-                requestBody = modifyBody(requestBody);
-            }
-
-            String responseBody = (String) logEntry.getValueByKey(LogEntryField.RESPONSE_BODY);
-            responseBody = modifyBody(responseBody);
-
-            if (requestBody.equals("{}") && responseBody.equals("{}") && (logEntry.url == null || logEntry.url.getQuery() == null)) {
-                continue;
-            }
-
             idx += 1;
-
             // Individual entry object
             writer.beginObject();
 
@@ -97,16 +81,10 @@ public class HarSerializer extends TypeAdapter<List<LogEntry>> {
             writer.name("headers").beginArray();
             for (String headerString : logEntry.requestHeaders) {
                 if (headerString.contains(":")) {
-                    String headerArray[] = headerString.split(":", 2);
-                    String value = headerArray[1].trim();
-                    if (headerArray[0].equalsIgnoreCase("Content-Type")) {
-                        if (!acceptableContentTypes.contains(value)) {
-                            value = "application/json";
-                        }
-                    }
                     writer.beginObject();
+                    String headerArray[] = headerString.split(":", 2);
                     writer.name("name").value(headerArray[0]);
-                    writer.name("value").value(value);
+                    writer.name("value").value(headerArray[1].trim());
                     writer.endObject();
                 }
             }
@@ -137,7 +115,7 @@ public class HarSerializer extends TypeAdapter<List<LogEntry>> {
                     writer.endObject();
                 }
                 writer.endArray(); // end params array
-                writer.name("text").value(requestBody);
+                writer.name("text").value((String) logEntry.getValueByKey(LogEntryField.REQUEST_BODY));
                 writer.endObject(); // end postData object
             }
 
@@ -168,26 +146,14 @@ public class HarSerializer extends TypeAdapter<List<LogEntry>> {
 
             writer.name("headers").beginArray();
             if (logEntry.responseHeaders != null) {
-                boolean foundContentType = false;
                 for (String headerString : logEntry.responseHeaders) {
                     if (headerString.contains(":")) {
-                        String headerArray[] = headerString.split(":", 2);
-                        String value = headerArray[1].trim();
-                        if (headerArray[0].equalsIgnoreCase("Content-Type")) {
-                            value = "application/json";
-                            foundContentType = true;
-                        }
                         writer.beginObject();
+                        String headerArray[] = headerString.split(":", 2);
                         writer.name("name").value(headerArray[0]);
-                        writer.name("value").value(value);
+                        writer.name("value").value(headerArray[1].trim());
                         writer.endObject();
                     }
-                }
-                if (!foundContentType) {
-                    writer.beginObject();
-                    writer.name("name").value("Content-Type");
-                    writer.name("value").value("application/json");
-                    writer.endObject();
                 }
             }
             writer.endArray(); // end response headers array
@@ -205,7 +171,7 @@ public class HarSerializer extends TypeAdapter<List<LogEntry>> {
             writer.name("content").beginObject(); // start content object
             writer.name("size").value(logEntry.responseBodyLength);
             writer.name("mimeType").value(logEntry.responseMimeType);
-            writer.name("text").value(responseBody);
+            writer.name("text").value(String.valueOf(logEntry.getValueByKey(LogEntryField.RESPONSE_BODY)));
             writer.endObject(); //end content object
 
             writer.endObject(); // end response object
@@ -262,43 +228,11 @@ public class HarSerializer extends TypeAdapter<List<LogEntry>> {
     }
 
     public static boolean shouldSend(LogEntry logEntry) {
-        String requestBody = (String) logEntry.getValueByKey(LogEntryField.REQUEST_BODY);
-        boolean reqCondition = checkIfJson(requestBody);
-
-        String responseBody = (String) logEntry.getValueByKey(LogEntryField.RESPONSE_BODY);
-        boolean resCondition = checkIfJson(responseBody);
-
-        boolean allEmpty = requestBody.isEmpty() && responseBody.isEmpty() && (logEntry.url == null || logEntry.url.getQuery() == null);
-
-        
-        boolean isForm = logEntry.requestContentType.equals("application/x-www-form-urlencoded");
-        if (isForm) {
-            return true;
-        }
-
-        return !allEmpty;
+        return true;
 
     }
 
-    public static boolean checkIfJson(String body) {
-        // trim the bodies xD
-        if (body == null || body.length() == 0) return false;
-        body = body.trim();
+   
 
-        // condition : body start and end with curly braces
-        boolean cond1A = body.startsWith("{") && body.endsWith("}");
-        boolean cond1B = body.startsWith("[") && body.endsWith("]");
-
-        return cond1A || cond1B;
-
-    }
-
-    public String modifyBody(String body) {
-        if (!checkIfJson(body)) {
-            return "{}";
-        } else {
-            return body;
-        }
-    }
 
 }
