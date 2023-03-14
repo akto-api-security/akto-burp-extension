@@ -13,6 +13,7 @@ import com.nccgroup.loggerplusplus.logentry.LogEntryField;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -228,6 +229,14 @@ public class HarSerializer extends TypeAdapter<List<LogEntry>> {
     }
 
     public static boolean shouldSend(LogEntry logEntry) {
+        int responseBodyLength = logEntry.responseBodyLength;
+        int requestBodyLength = logEntry.requestBodyLength;
+        int limit = 1_000_000;
+        long size = requestBodyLength + responseBodyLength;
+        if (size > limit) {
+            LoggerPlusPlus.callbacks.printOutput("Skipping " + logEntry.method + " " + logEntry.url + " because too big (" +  size + " bytes ). Limit is " + limit);
+            return false;
+        }
         return true;
 
     }

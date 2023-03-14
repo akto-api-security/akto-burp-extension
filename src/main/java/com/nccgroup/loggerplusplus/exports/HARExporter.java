@@ -81,14 +81,6 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
         
         int batchNum = 1;
         for (LogEntry entry: entries) {
-            boolean shouldSend = false;
-            try {
-                shouldSend = HarSerializer.shouldSend(entry);
-            } catch (Exception e) {
-                LoggerPlusPlus.callbacks.printError("ERROR FOUND SKIP: " + e.getMessage());
-            }
-            if (!shouldSend) continue;
-
             batch.add(entry);
 
             if (batch.size() >= batchSize) {
@@ -129,6 +121,13 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
 
     public static CloseableHttpClient httpClient = HttpClientBuilder.create().setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE).build();
     public static boolean sendBatch(List<LogEntry> entries, int batchCode, String akto_ip, String akto_token, String apiCollectionName) {
+
+        for (int i = entries.size() - 1; i >= 0; --i) {
+            if (!HarSerializer.shouldSend(entries.get(i))) {
+                entries.remove(i);
+            }
+        }
+
         Type logEntryListType = new TypeToken<List<LogEntry>>(){}.getType();
         Gson gson = new GsonBuilder().registerTypeAdapter(logEntryListType, new HarSerializer(String.valueOf(Globals.VERSION), "Akto")).create();
         CloseableHttpResponse response;
