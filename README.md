@@ -12,6 +12,10 @@ https://user-images.githubusercontent.com/91306853/216748138-bba85a2f-6326-4aaf-
 <b>Modifications:</b>
 Akto burp plugin built on top of Logger++ plugin developed by Corey Arthur and  Soroush Dalili.
 
+*14th Mar 2023*
+1. Plugin sends all data without any filter except on logEntry size
+     - Added a check for logEntry size < 1M bytes.
+
 *23rd Jan 2023*
 1. Plugin automatically sends data to Akto. No need to send data manually.
      - Added "Send data to akto automatically" toggle in options tab to control this feature.
