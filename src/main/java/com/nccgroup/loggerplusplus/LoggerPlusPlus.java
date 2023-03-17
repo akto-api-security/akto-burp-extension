@@ -253,7 +253,7 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
                     try {
                         int currentVersion = Integer.parseInt(versionString);
                         if (currentVersion < latestVersion) {
-                            String message = "This is old an plugin!! Download the sexxier one from " + akto_ip;
+                            String message = "This is old an plugin!! Download the newer one from " + akto_ip;
                              JOptionPane.showMessageDialog(JOptionPane.getFrameForComponent(
                                  LoggerPlusPlus.instance.getMainViewController().getUiComponent()), message);
                         }
