@@ -115,6 +115,7 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
 
         versionString = "5";
         preferencesController.getPreferences().setSetting("AKTO_PLUGIN_VERSION", versionString);
+        preferencesController.getPreferences().setSetting("AKTO_COLLECTION_NAME", "Burp");
 
         startHealthCheckThread();
         startAutoExportToAktoThread();
