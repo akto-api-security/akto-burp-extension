@@ -112,11 +112,9 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
         contextMenuFactory = new LoggerContextMenuFactory(this);
 
         mainViewController = new MainViewController(this);
-        try {
-            readCredentials("credentials.txt");
-        } catch (Exception e) {
-            callbacks.printError("ERROR while reading credentials.txt: "  + Arrays.toString(e.getStackTrace()));
-        }
+
+        versionString = "5";
+        preferencesController.getPreferences().setSetting("AKTO_PLUGIN_VERSION", versionString);
 
         startHealthCheckThread();
         startAutoExportToAktoThread();
@@ -143,45 +141,13 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
 
     public static CloseableHttpClient httpClient = HttpClientBuilder.create().setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE).build();
 
-    public void readCredentials(String path) {
-        ClassLoader cldr = AboutPanel.class.getClassLoader();
-        URL imageURLMain = cldr.getResource(path);
-        LoggerPlusPlus.callbacks.printOutput("imageURLMain: " + path + " "  + imageURLMain);
-
-        InputStream main = cldr.getResourceAsStream(path);
-        if (main == null) {
-            LoggerPlusPlus.callbacks.printError("Failed reading file: " + path);
-            return;
-        }
-
-        List<String> results = new ArrayList<>();
-
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(main))) {
-            String line;
-            while ((line = br.readLine()) != null)  results.add(line);
-        } catch (Exception e) {
-            LoggerPlusPlus.callbacks.printError("Failed reading line: " + e.getMessage());
-        }
-
-        addSettingsFromFile("AKTO_IP", results, 0, false);
-        addSettingsFromFile("AKTO_TOKEN", results, 1, false);
-        addSettingsFromFile("AKTO_COLLECTION_NAME", results, 2, false);
-        addSettingsFromFile("AKTO_PLUGIN_VERSION", results, 3, true);
-    }
-
-    private void addSettingsFromFile(String name, List<String> results, int index, boolean override) {
-
-        String settingValue = preferencesController.getPreferences().getSetting(name);
-
-        if (override || settingValue == null || settingValue.trim().isEmpty()) {
-            preferencesController.getPreferences().setSetting(name, results.get(index));
-        }
-
-    }
-
     public void startAutoExportToAktoThread() {
         scheduler.scheduleAtFixedRate(() -> {
             try {
+                String akto_ip = preferencesController.getPreferences().getSetting("AKTO_IP");
+                String akto_token = preferencesController.getPreferences().getSetting("AKTO_TOKEN");
+                if (akto_ip == null || akto_ip.trim().isEmpty() || akto_token == null || akto_token.trim().isEmpty()) return;
+
                 sendDataToAkto();
             } catch (Exception e) {
                 LoggerPlusPlus.callbacks.printError("ERROR while sending data to akto: "  + Arrays.toString(e.getStackTrace()));
@@ -222,11 +188,16 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
 
     private static final Gson gson = new Gson();
 
+    private static String versionString = null;
+
     public void sendHealthCheck(boolean initialCall) {
         CloseableHttpResponse response;
         String akto_ip = preferencesController.getPreferences().getSetting("AKTO_IP");
-        String versionString = preferencesController.getPreferences().getSetting("AKTO_PLUGIN_VERSION");
         String akto_token = preferencesController.getPreferences().getSetting("AKTO_TOKEN");
+
+        if (akto_ip == null || akto_ip.trim().isEmpty() || akto_token == null || akto_token.trim().isEmpty()) {
+            return;
+        }
 
         if (versionString == null) versionString = "-1";
 
