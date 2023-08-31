@@ -12,6 +12,10 @@ https://user-images.githubusercontent.com/91306853/216748138-bba85a2f-6326-4aaf-
 <b>Modifications:</b>
 Akto burp plugin built on top of Logger++ plugin developed by Corey Arthur and  Soroush Dalili.
 
+*31st Aug 2023*
+1. Unbundled credentials from jar file
+    - Plugin doesn't automatically come preloaded with akto credentials
+
 *14th Mar 2023*
 1. Plugin sends all data without any filter except on logEntry size
      - Added a check for logEntry size < 1M bytes.
