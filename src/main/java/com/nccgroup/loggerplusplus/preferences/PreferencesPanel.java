@@ -113,6 +113,9 @@ public class PreferencesPanel extends JScrollPane {
         aktoGroup.addPreferenceComponent(preferences, "AKTO_COLLECTION_NAME", "AKTO EXPORT COLLECTION NAME");
         aktoGroup.addPreferenceComponent(preferences, "AKTO_IMPORT_COLLECTION_NAME", "AKTO IMPORT COLLECTION NAME");
         aktoGroup.addPreferenceComponent(preferences, "AKTO_SEND_DATA_AUTOMATICALLY", "Send data to akto automatically");
+        aktoGroup.addPreferenceComponent(preferences, "AKTO_PROXY_IP", "AKTO PROXY IP");
+        aktoGroup.addPreferenceComponent(preferences, "AKTO_PROXY_USERNAME", "AKTO PROXY USERNAME");
+        aktoGroup.addPreferenceComponent(preferences, "AKTO_PROXY_PASSWORD", "AKTO PROXY PASSWORD");
 
         aktoGroup.add(new JButton(new AbstractAction("Import From Akto") {
             @Override
@@ -121,7 +124,10 @@ public class PreferencesPanel extends JScrollPane {
                     LoggerImport.importAktoMain(
                             preferences.getSetting("AKTO_IMPORT_COLLECTION_NAME"),
                             preferences.getSetting("AKTO_TOKEN"),
-                            preferences.getSetting("AKTO_IP")
+                            preferences.getSetting("AKTO_IP"),
+                            preferences.getSetting("AKTO_PROXY_IP"),
+                            preferences.getSetting("AKTO_PROXY_USERNAME"),
+                            preferences.getSetting("AKTO_PROXY_PASSWORD")
                     );
                 } catch (Exception ex) {
                     LoggerPlusPlus.callbacks.printError(ex.getMessage());

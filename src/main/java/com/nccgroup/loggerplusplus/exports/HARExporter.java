@@ -18,17 +18,25 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
 public class HARExporter extends LogExporter implements ExportPanelProvider, ContextMenuExportProvider {
@@ -78,13 +86,15 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
         String akto_ip = preferences.getSetting("AKTO_IP");
         String akto_token = preferences.getSetting("AKTO_TOKEN");
         String apiCollectionName = preferences.getSetting("AKTO_COLLECTION_NAME");
-        
+        String akto_proxy_ip = preferences.getSetting("AKTO_PROXY_IP");
+        String akto_proxy_username = preferences.getSetting("AKTO_PROXY_USERNAME");
+        String akto_proxy_password = preferences.getSetting("AKTO_PROXY_PASSWORD");
         int batchNum = 1;
         for (LogEntry entry: entries) {
             batch.add(entry);
 
             if (batch.size() >= batchSize) {
-                boolean shouldStop = sendBatch(batch,batchNum, akto_ip, akto_token, apiCollectionName);
+                boolean shouldStop = sendBatch(batch, batchNum, akto_ip,akto_token, apiCollectionName, akto_proxy_ip, akto_proxy_username, akto_proxy_password);                
                 if (shouldStop) {
                     return;
                 }
@@ -96,7 +106,7 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
         LoggerPlusPlus.callbacks.printOutput("entries pending " + batch.size());
         
         if (batch.size() != 0) {
-            sendBatch(batch,batchNum, akto_ip, akto_token, apiCollectionName);
+            sendBatch(batch, batchNum, akto_ip, akto_token, apiCollectionName, akto_proxy_ip, akto_proxy_username, akto_proxy_password);
             LoggerPlusPlus.callbacks.printOutput("BATCH " + batchNum + " Done");
             batchNum += 1;
             batch = new ArrayList<>();
@@ -119,25 +129,65 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
 
     }
 
-    public static CloseableHttpClient httpClient = HttpClientBuilder.create().setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE).build();
-    public static boolean sendBatch(List<LogEntry> entries, int batchCode, String akto_ip, String akto_token, String apiCollectionName) {
-
+    public static boolean sendBatch(List<LogEntry> entries, int batchCode, String akto_ip, String akto_token, String apiCollectionName, String akto_proxy_ip, String akto_proxy_username ,String akto_proxy_password)  {
         for (int i = entries.size() - 1; i >= 0; --i) {
             if (!HarSerializer.shouldSend(entries.get(i))) {
                 entries.remove(i);
             }
         }
 
+        HttpClientBuilder clientbuilder = HttpClients.custom();
+        RequestConfig.Builder reqconfigconbuilder= RequestConfig.custom();
+        int proxy_needed = 0;
+
+        String protocol = "";
+        String hostname = "";
+        try {
+            URL url = new URL(akto_ip);
+            protocol = url.getProtocol();
+            hostname = url.getHost();
+        } 
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        HttpHost target  = new HttpHost(hostname,0, protocol);
+
+        if (akto_proxy_ip.length() != 0 && akto_proxy_username.length() != 0 && akto_proxy_password.length() != 0) {
+            proxy_needed = 1;
+            String akto_proxy_protocol = "";
+            String akto_proxy_hostname = "";
+            int akto_proxy_port = 0;
+            try {
+                URL url = new URL(akto_proxy_ip);
+                akto_proxy_protocol = url.getProtocol();
+                akto_proxy_hostname = url.getHost();
+                akto_proxy_port = url.getPort();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            CredentialsProvider credentialsPovider = new BasicCredentialsProvider();
+            credentialsPovider.setCredentials(new AuthScope(akto_proxy_hostname,akto_proxy_port), new
+            UsernamePasswordCredentials(akto_proxy_username, akto_proxy_password));
+            
+            clientbuilder = clientbuilder.setDefaultCredentialsProvider(credentialsPovider);
+            HttpHost proxy = new HttpHost(akto_proxy_hostname, akto_proxy_port, akto_proxy_protocol);
+            reqconfigconbuilder = reqconfigconbuilder.setProxy(proxy);
+        }
+        
+        RequestConfig config = reqconfigconbuilder.build();
+        CloseableHttpClient httpClient = clientbuilder.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE).build();
         Type logEntryListType = new TypeToken<List<LogEntry>>(){}.getType();
         Gson gson = new GsonBuilder().registerTypeAdapter(logEntryListType, new HarSerializer(String.valueOf(Globals.VERSION), "Akto")).create();
         CloseableHttpResponse response;
-
+        
         try {
-
+            
             Map<String, List<LogEntry>> finalMap = new HashMap<>();
             finalMap.put("content", entries);
             String body = gson.toJson(finalMap, new TypeToken<Map<String,List<LogEntry>>>(){}.getType());
-
+            
             Gson gson1 = new Gson();
             Map<String,String> gg = gson1.fromJson(body, Map.class);
             gg.put("apiCollectionName", apiCollectionName);
@@ -147,14 +197,23 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
             post.setEntity(new StringEntity(body1));
             post.setHeader("Content-type", "application/json");
             post.setHeader("X-API-KEY", akto_token);
-
+            
             LoggerPlusPlus.callbacks.printOutput("sending batch " + batchCode);
-            response =  httpClient.execute(post);
+            if (proxy_needed==1) {
+                post.setConfig(config);
+                response =  httpClient.execute( target ,post);
+            }
+            else
+            {
+                response = httpClient.execute(post);
+            }
+
+            
             LoggerPlusPlus.callbacks.printOutput("sent batch " + batchCode);
-            String responseString = EntityUtils.toString(response.getEntity());
+            String responseString = EntityUtils.toString(response.getEntity()); 
             try {
                 int statusCode = response.getStatusLine().getStatusCode();
-
+                // LoggerPlusPlus.callbacks.printOutput("The status code is: " + (statusCode));
                 if (statusCode == 422) {
                     JsonObject jsonResp = new Gson().fromJson(responseString, JsonObject.class); // String to JSONObject
                     if (jsonResp.has("actionErrors")) {
@@ -180,7 +239,7 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
 
             } catch (Exception e) {
                 return true;
-
+                
             } finally {
                 response.close();
             }
@@ -189,11 +248,11 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
             LoggerPlusPlus.callbacks.printError(e.getMessage());
             JOptionPane.showMessageDialog(JOptionPane.getFrameForComponent(
                     LoggerPlusPlus.instance.getMainViewController().getUiComponent()), e.toString());
-
+                    
             return true;
         }
 
-
+        
     }
 
     @Override

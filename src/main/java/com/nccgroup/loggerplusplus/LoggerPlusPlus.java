@@ -21,12 +21,19 @@ import com.nccgroup.loggerplusplus.util.Globals;
 import com.nccgroup.loggerplusplus.util.userinterface.LoggerMenu;
 
 import org.apache.commons.logging.Log;
+import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.Level;
 
@@ -166,8 +173,11 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
             String collectionName = instance.getPreferencesController().getPreferences().getSetting("AKTO_COLLECTION_NAME");
             String aktoIp = instance.getPreferencesController().getPreferences().getSetting("AKTO_IP");
             String aktoToken = instance.getPreferencesController().getPreferences().getSetting("AKTO_TOKEN");
-
-            HARExporter.sendBatch(data.subList(0,Math.min(100, data.size())), 0, aktoIp, aktoToken, collectionName);
+            String akto_proxy_ip = instance.getPreferencesController().getPreferences().getSetting("AKTO_PROXY_IP");
+            String akto_proxy_username = instance.getPreferencesController().getPreferences().getSetting("AKTO_PROXY_USERNAME");
+            String akto_proxy_password = instance.getPreferencesController().getPreferences().getSetting("AKTO_PROXY_PASSWORD");
+            
+            HARExporter.sendBatch(data.subList(0,Math.min(100, data.size())), 0, aktoIp, aktoToken, collectionName, akto_proxy_ip, akto_proxy_username, akto_proxy_password);
         }
     }
     ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
@@ -195,6 +205,9 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
         CloseableHttpResponse response;
         String akto_ip = preferencesController.getPreferences().getSetting("AKTO_IP");
         String akto_token = preferencesController.getPreferences().getSetting("AKTO_TOKEN");
+        String akto_proxy_ip = preferencesController.getPreferences().getSetting("AKTO_PROXY_IP");
+        String akto_proxy_username = preferencesController.getPreferences().getSetting("AKTO_PROXY_USERNAME");
+        String akto_proxy_password = preferencesController.getPreferences().getSetting("AKTO_PROXY_PASSWORD");
 
         if (akto_ip == null || akto_ip.trim().isEmpty() || akto_token == null || akto_token.trim().isEmpty()) {
             return;
@@ -208,12 +221,68 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
 
         LoggerPlusPlus.callbacks.printOutput("REQUEST: " + requestString);
 
+        HttpClientBuilder clientbuilder = HttpClients.custom();
+        RequestConfig.Builder reqconfigconbuilder= RequestConfig.custom();
+        int proxy_needed = 0;
+
+        String protocol = "";
+        String hostname = "";
         try {
+            URL akto_url = new URL(akto_ip);
+            protocol = akto_url.getProtocol();
+            hostname = akto_url.getHost();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        HttpHost target  = new HttpHost(hostname,0, protocol);
+
+        if (akto_proxy_ip.length() != 0 && akto_proxy_username.length() != 0 && akto_proxy_password.length() != 0) {
+            proxy_needed = 1;
+            LoggerPlusPlus.callbacks.printOutput("testing heath check: " + akto_proxy_ip);
+            String akto_proxy_protocol = "";
+            String akto_proxy_hostname = "";
+            int akto_proxy_port = 0;
+            try {
+                URL akto_proxy_url = new URL(akto_proxy_ip);
+                akto_proxy_protocol = akto_proxy_url.getProtocol();
+                akto_proxy_hostname = akto_proxy_url.getHost();
+                akto_proxy_port = akto_proxy_url.getPort();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+
+            CredentialsProvider credentialsPovider = new BasicCredentialsProvider();
+            credentialsPovider.setCredentials(new AuthScope(akto_proxy_hostname,akto_proxy_port), new
+            UsernamePasswordCredentials(akto_proxy_username, akto_proxy_password));
+            
+            clientbuilder = clientbuilder.setDefaultCredentialsProvider(credentialsPovider);
+            HttpHost proxy = new HttpHost(akto_proxy_hostname, akto_proxy_port, akto_proxy_protocol);
+            reqconfigconbuilder = reqconfigconbuilder.setProxy(proxy);
+        }
+
+        RequestConfig config = reqconfigconbuilder.build();
+        CloseableHttpClient httpClient = clientbuilder.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE).build();
+
+        try {
+
             HttpPost post = new HttpPost(akto_ip+"/api/sendHealthCheck");
             post.setHeader("X-API-KEY", akto_token);
             post.setHeader("Content-type", "application/json");
             post.setEntity(new StringEntity(requestString));
-            response =  httpClient.execute(post);
+            
+            if (proxy_needed==1) {
+                post.setConfig(config);
+                response =  httpClient.execute( target ,post);
+            }
+            else
+            {
+                response = httpClient.execute(post);
+            }
+
+            int statusCode = response.getStatusLine().getStatusCode();
+            LoggerPlusPlus.callbacks.printOutput("The status code is: " + (statusCode));
 
             if (initialCall) {
                 if (response != null && response.getEntity() != null) {
