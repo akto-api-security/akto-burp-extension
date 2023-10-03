@@ -204,6 +204,8 @@ public class LoggerImport {
 
         CloseableHttpResponse response;
         if (proxy_needed==1) {
+            String encodedString = Base64.getEncoder().encodeToString((akto_proxy_username+ ":"+ akto_proxy_password).getBytes());
+            post.setHeader("Authorization", "Basic " + encodedString);
             post.setConfig(config);
             response =  httpClient.execute( target ,post);
             LoggerPlusPlus.callbacks.printOutput("with proxy");

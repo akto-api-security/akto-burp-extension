@@ -21,6 +21,7 @@ import java.lang.reflect.Type;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -200,6 +201,8 @@ public class HARExporter extends LogExporter implements ExportPanelProvider, Con
             
             LoggerPlusPlus.callbacks.printOutput("sending batch " + batchCode);
             if (proxy_needed==1) {
+                String encodedString = Base64.getEncoder().encodeToString((akto_proxy_username+ ":"+ akto_proxy_password).getBytes());
+                post.setHeader("Authorization", "Basic " + encodedString);
                 post.setConfig(config);
                 response =  httpClient.execute( target ,post);
             }

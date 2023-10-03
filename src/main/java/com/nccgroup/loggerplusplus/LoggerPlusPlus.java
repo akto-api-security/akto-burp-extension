@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.Base64;
 
 import static com.nccgroup.loggerplusplus.util.Globals.PREF_RESTRICT_TO_SCOPE;
 
@@ -239,7 +240,7 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
 
         if (akto_proxy_ip.length() != 0 && akto_proxy_username.length() != 0 && akto_proxy_password.length() != 0) {
             proxy_needed = 1;
-            LoggerPlusPlus.callbacks.printOutput("testing heath check: " + akto_proxy_ip);
+            // LoggerPlusPlus.callbacks.printOutput("testing heath check: " + akto_proxy_ip);
             String akto_proxy_protocol = "";
             String akto_proxy_hostname = "";
             int akto_proxy_port = 0;
@@ -273,6 +274,8 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
             post.setEntity(new StringEntity(requestString));
             
             if (proxy_needed==1) {
+                String encodedString = Base64.getEncoder().encodeToString((akto_proxy_username+ ":"+ akto_proxy_password).getBytes());
+                post.setHeader("Authorization", "Basic " + encodedString);
                 post.setConfig(config);
                 response =  httpClient.execute( target ,post);
             }
