@@ -12,7 +12,7 @@ https://user-images.githubusercontent.com/91306853/216748138-bba85a2f-6326-4aaf-
 <b>Modifications:</b>
 Akto burp plugin built on top of Logger++ plugin developed by Corey Arthur and  Soroush Dalili.
 
-"3rd Oct 2023"
+*3rd Oct 2023*
 1. Plugin can send data to Akto via a proxy server
      - Added Proxy Credentials fields in the Options tab.
 
