@@ -164,7 +164,7 @@ public class LoggerImport {
 
         HttpHost target  = new HttpHost(hostname,0, protocol);
 
-        if (akto_proxy_ip.length() != 0 && akto_proxy_username.length() != 0 && akto_proxy_password.length() != 0) {
+        if (akto_proxy_ip.length() != 0 ) {
             proxy_needed = 1;
             String akto_proxy_protocol = "";
             String akto_proxy_hostname = "";

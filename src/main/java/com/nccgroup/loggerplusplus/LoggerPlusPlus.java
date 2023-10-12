@@ -238,7 +238,7 @@ public class LoggerPlusPlus implements IBurpExtender, IExtensionStateListener {
 
         HttpHost target  = new HttpHost(hostname,0, protocol);
 
-        if (akto_proxy_ip.length() != 0 && akto_proxy_username.length() != 0 && akto_proxy_password.length() != 0) {
+        if (akto_proxy_ip.length() != 0 ) {
             proxy_needed = 1;
             // LoggerPlusPlus.callbacks.printOutput("testing heath check: " + akto_proxy_ip);
             String akto_proxy_protocol = "";
