@@ -21,12 +21,19 @@ import com.nccgroup.loggerplusplus.LoggerPlusPlus;
 import com.nccgroup.loggerplusplus.logview.processor.EntryImportWorker;
 import com.nccgroup.loggerplusplus.util.SwingWorkerWithProgressDialog;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
 import javax.swing.*;
@@ -107,7 +114,7 @@ public class LoggerImport {
         return requests;
     }
 
-    public static void importAktoMain(String collectionName, String apiKey, String url) {
+    public static void importAktoMain(String collectionName, String apiKey, String url, String akto_proxy_ip, String akto_proxy_username, String akto_proxy_passowrd) {
         try {
             Thread newThread = new Thread(() -> {
                 String lastMethodFetched = null;
@@ -117,7 +124,7 @@ public class LoggerImport {
                     while ( i < 30 ) {
                         i += 1;
                         LoggerPlusPlus.callbacks.printOutput(i+"");
-                        Map<String, String> result = importAkto(collectionName, apiKey, url, lastUrlFetched,  lastMethodFetched);
+                        Map<String, String> result = importAkto(collectionName, apiKey, url, lastUrlFetched,  lastMethodFetched, akto_proxy_ip,  akto_proxy_username, akto_proxy_passowrd);
                         lastMethodFetched = result.get("lastMethodFetched");
                         lastUrlFetched = result.get("lastUrlFetched");
                         if (lastUrlFetched == null) break;
@@ -136,11 +143,54 @@ public class LoggerImport {
 
 
     public static Map<String, String> importAkto(String collectionName, String apiKey, String url, String lastUrlFetched,
-                                                 String lastMethodFetched) throws Exception {
+                                                 String lastMethodFetched,String akto_proxy_ip,  String akto_proxy_username, String akto_proxy_password) throws Exception {
         LoggerPlusPlus.callbacks.printOutput("IMPORT from akto " + collectionName + " " + apiKey);
 
         ArrayList<IHttpRequestResponse> requests = new ArrayList<>();
 
+        HttpClientBuilder clientbuilder = HttpClients.custom();
+        RequestConfig.Builder reqconfigconbuilder= RequestConfig.custom();
+        int proxy_needed = 0;
+
+        String protocol = "";
+        String hostname = "";
+        try {
+            URL akto_url = new URL(url);
+            protocol = akto_url.getProtocol();
+            hostname = akto_url.getHost();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        HttpHost target  = new HttpHost(hostname,0, protocol);
+
+        if (akto_proxy_ip.length() != 0 ) {
+            proxy_needed = 1;
+            String akto_proxy_protocol = "";
+            String akto_proxy_hostname = "";
+            int akto_proxy_port = 0;
+            try {
+                URL akto_proxy_url = new URL(akto_proxy_ip);
+                akto_proxy_protocol = akto_proxy_url.getProtocol();
+                akto_proxy_hostname = akto_proxy_url.getHost();
+                akto_proxy_port = akto_proxy_url.getPort();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+
+            CredentialsProvider credentialsPovider = new BasicCredentialsProvider();
+            credentialsPovider.setCredentials(new AuthScope(akto_proxy_hostname,akto_proxy_port), new
+            UsernamePasswordCredentials(akto_proxy_username, akto_proxy_password));
+            
+            clientbuilder = clientbuilder.setDefaultCredentialsProvider(credentialsPovider);
+            HttpHost proxy = new HttpHost(akto_proxy_hostname, akto_proxy_port, akto_proxy_protocol);
+            reqconfigconbuilder = reqconfigconbuilder.setProxy(proxy);
+        }
+
+        RequestConfig config = reqconfigconbuilder.build();
+
+        CloseableHttpClient httpClient = clientbuilder.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE).build();
         HttpPost post = new HttpPost(url + "/api/importInBurp");
         Map<String, String> body = new HashMap<>();
         body.put("collectionName", collectionName);
@@ -152,9 +202,22 @@ public class LoggerImport {
         post.setHeader("Content-type", "application/json");
         post.setHeader("X-API-KEY", apiKey);
 
-        CloseableHttpClient httpClient = HttpClientBuilder.create().setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE).build();
-        CloseableHttpResponse response =  httpClient.execute(post);
+        CloseableHttpResponse response;
+        if (proxy_needed==1) {
+            String encodedString = Base64.getEncoder().encodeToString((akto_proxy_username+ ":"+ akto_proxy_password).getBytes());
+            post.setHeader("Authorization", "Basic " + encodedString);
+            post.setConfig(config);
+            response =  httpClient.execute( target ,post);
+            LoggerPlusPlus.callbacks.printOutput("with proxy");
+        }
+        else
+        {
+            response = httpClient.execute(post);
+        }
+        // int statusCode = response.getStatusLine().getStatusCode();
+        // LoggerPlusPlus.callbacks.printOutput("the status code is: " + (statusCode));
         String responseString = EntityUtils.toString(response.getEntity());
+        // LoggerPlusPlus.callbacks.printError("the response string is: " + (responseString));
 
         JsonObject jsonResp = new Gson().fromJson(responseString, JsonObject.class); // String to JSONObject
         JsonArray importInBurpResult = jsonResp.get("importInBurpResult").getAsJsonArray();

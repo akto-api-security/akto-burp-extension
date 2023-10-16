@@ -87,6 +87,9 @@ public class LoggerPreferenceFactory extends PreferenceFactory {
         prefs.registerSetting("AKTO_IMPORT_COLLECTION_NAME",String.class, "");
         prefs.registerSetting("AKTO_PLUGIN_VERSION",String.class, "");
         prefs.registerSetting("AKTO_SEND_DATA_AUTOMATICALLY", Boolean.class, true);
+        prefs.registerSetting("AKTO_PROXY_IP", String.class, "");
+        prefs.registerSetting("AKTO_PROXY_USERNAME", String.class, "");
+        prefs.registerSetting("AKTO_PROXY_PASSWORD", String.class, "");
         prefs.registerSetting(PREF_SORT_ORDER, SortOrder.class, SortOrder.UNSORTED);
         prefs.registerSetting(PREF_RESPONSE_TIMEOUT, Integer.class, 60);
         prefs.registerSetting(PREF_MAXIMUM_ENTRIES, Integer.class, 1000000);
